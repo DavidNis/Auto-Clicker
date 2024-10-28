@@ -1,34 +1,46 @@
 import pyautogui
 import time
 import keyboard
+import threading
 
-running = True
-paused = False
+interval = 300  # 5 minutes
+pause = threading.Event()
+terminate = threading.Event()
 
-def stop_prog():
-    global running
-    running = False
-    print("Exiting program.")
+def clicker():
+    while not terminate.is_set():
+        if not pause.is_set():
+            pyautogui.click()
+            print('Clicked')
+        for _ in range(interval):
+            if terminate.is_set():
+                break
+            time.sleep(1)
 
-def pause_prog():
-    global paused
-    paused = not paused
-    print("Paused" if paused else "Resumed")
-
-keyboard.add_hotkey('ctrl+q', stop_prog)
-keyboard.add_hotkey('ctrl+s', pause_prog)
-
-print("Press ctrl+q to stop the program")
-print("Press ctrl+s to pause the program")
-time.sleep(2)
-
-
-while running:
-    if not paused:
-        pyautogui.click()
-        print("Clicked!")
-        
-    for _ in range(300): 
-        if not running:
+def key_listener():
+    while not terminate.is_set():
+        if keyboard.is_pressed('Ctrl + s'):
+            if pause.is_set():
+                print("Resumed")
+                pause.clear()
+            else:
+                print("Paused")
+                pause.set() # pause clicking
+            time.sleep(1)
+        if keyboard.is_pressed('Ctrl + q'):
+            print("Terminated...Goodbye :)")
+            terminate.set()
             break
-        time.sleep(1)
+
+print("Press 'Ctrl + s' to pause/resume clicking")
+print("Press 'Ctrl + q' to terminate the program")
+
+time.sleep(1)
+clicker_thread = threading.Thread(target=clicker)
+clicker_thread.start()
+
+key_listener_thread = threading.Thread(target=key_listener)
+key_listener_thread.start()
+
+clicker_thread.join()
+key_listener_thread.join()
